@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <link href="https://fonts.googleapis.com/css?family=Chilanka&display=swap" rel="stylesheet">
+        <style>
+            canvas { border: 1px solid black; }
+        </style>
+    </head>
+
+    <body>
+    </body>
+
+    <script>
+        (function() {
+            if (console.plot2d) return console.error("console.plot2d() already exists.");
+
+            const doc = (typeof document !== "undefined") ? document : new Document();
+            const create = doc.createElement.bind(doc);
+
+            function getDims(xdata, ydata) {
+                let minx = miny = Number.MAX_VALUE;
+                let maxx = maxy = Number.MIN_VALUE;
+                let x, y;
+                for(let i=0, e=xdata.length; i<e; i++) {
+                    x = xdata[i];
+                    if (x < minx) minx = x;
+                    if (x > maxx) maxx = x;
+
+                    y = ydata[i];
+                    if (y < miny) miny = y;
+                    if (y > maxy) maxy = y;
+                }
+                return { minx, miny, maxx, maxy, xrange: (maxx-minx)|0, yrange: (maxy-miny)|0 };
+            }
+
+            function build2DPlot(xdata, ydata, dims) {
+                const cvs = create("canvas");
+                cvs.width = dims.xrange;
+                cvs.height = dims.yrange;
+
+                const ctx = cvs.getContext("2d");
+                ctx.fillStyle = "white";
+                ctx.strokeStyle = "black";
+                ctx.fillRect(0,0,cvs.width,cvs.height);
+
+                // plots have (0,0) in the lower left, and (+,+) in the upper right.
+                const start = () => ctx.beginPath();
+                const end = () => ctx.stroke();
+                const moveTo = (x,y) => ctx.moveTo(x + 0.5,cvs.height - y - 0.5);
+                const lineTo = (x,y) => ctx.lineTo(x + 0.5,cvs.height - y - 0.5);
+                const line = (a,b,x,y) => { start(); moveTo(a,b); lineTo(x,y); end(); };
+
+                // grid
+                start();
+                ctx.strokeStyle = "lightgrey";
+                for(let i=0; i<cvs.width; i+=10) line(i,0,i,cvs.height);
+                for(let i=0; i<cvs.height; i+=10) line(0,i,cvs.width,i);
+
+                ctx.strokeStyle = "black";
+                line(0,0, cvs.width,0);
+                line(0,0, 0,cvs.height);
+
+                // graph
+
+                ctx.strokeStyle = "blue";
+                start();
+                moveTo(0,0);
+                xdata.forEach((x,y) => {
+                    y = ydata[x];
+                    lineTo(x, y + dims.yrange / 2);
+                });
+                end();
+
+                return cvs.toDataURL();
+            }
+
+            function buildStyle(obj) {
+                return Object.keys(obj).map(key => `${key}: ${obj[key]};`).join(` `);
+            }
+
+
+            console.plot2d = function(xdata, ydata) {
+                if (!ydata) {
+                    ydata = xdata;
+                    xdata = ydata.slice().map((_,v) => v);
+                }
+
+                if (xdata.length !== ydata.length) {
+                    throw new Error("Unequal length data input");
+                }
+
+                const dims = getDims(xdata, ydata);
+                const dataURI = build2DPlot(xdata, ydata, dims);
+
+                const style = {
+                    "color": `transparent`,
+                    "display": `inline-block`,
+                    "background": `rgba(0,0,0,0.1)`,
+                    "background-image": `url("${dataURI}")`,
+                    "background-repeat": `no-repeat`,
+                    "background-size": `${dims.xrange}px ${dims.yrange}px`,
+                    "font-size": `0`,
+                    "padding":  `${dims.yrange/2}px ${dims.xrange/2}px`,
+                    "line-height": `0`,
+                };
+                const css = buildStyle(style);
+                return console.log(`%c<img>`, css);
+            };
+        })();
+
+        const xdata = new Array(150).fill(0).map((_,v)=> (v+5));
+        const ydata = xdata.map((_,v) => 50 * Math.sin(v/20 * Math.PI));
+        console.plot2d(xdata, ydata);
+    </script>
+</html>
+
+<!--
+    Can I load a font-face in console? If so, can I generate the graph AS A FONT GLYPH and then render that?
+    Can I the use multiglyph overlay for "the graph" and "the plot"?
+    CAN I THEN USE FVAR TO TO ANIMATE ALONG THAT PLOT???
+-->
